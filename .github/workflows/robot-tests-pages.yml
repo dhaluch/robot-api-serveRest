@@ -44,39 +44,6 @@ jobs:
           name: robot-results
           path: results
 
-  publish_pages:
-    name: Publish logs to GitHub Pages (gh-pages)
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository (for context)
-        uses: actions/checkout@v4
-
-      - name: Prepare site folder
-        run: |
-          rm -rf site || true
-          mkdir -p site
-          # Copia todos os arquivos gerados para a pasta site
-          if [ -d results ]; then
-            cp -r results/* site/ || true
-          fi
-          # Caso existam arquivos gerados na raiz do repositório, copiar também
-          cp -n log.html site/ || true
-          cp -n report.html site/ || true
-          cp -n output.xml site/ || true
-          # Exemplo: incluir recursos estáticos, se existirem
-          if [ -d Json ]; then
-            mkdir -p site/Json
-            cp -r Json/* site/Json/ || true
-          fi
-
-      - name: List site folder (for debug)
-        run: |
-          echo '--- site contents ---'
-          ls -la site || true
-
-      - name: Deploy to gh-pages branch
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./site
+  # Note: publishing to GitHub Pages removed per request. The workflow now
+  # only runs tests and uploads the generated reports as artifacts for
+  # download from the Actions run.
