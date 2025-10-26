@@ -45,7 +45,7 @@ jobs:
           path: results
 
   publish_pages:
-    name: Publish logs to GitHub Pages
+    name: Publish logs to GitHub Pages (gh-pages)
     needs: test
     runs-on: ubuntu-latest
     steps:
@@ -75,15 +75,8 @@ jobs:
           echo '--- site contents ---'
           ls -la site || true
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v1
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v3
         with:
-          path: site
-
-  deploy_pages:
-    name: Deploy to GitHub Pages
-    needs: publish_pages
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy
-        uses: actions/deploy-pages@v1
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
