@@ -1,0 +1,49 @@
+name: Robot Framework tests and publish logs to GitHub Pages
+
+on:
+  push:
+    # Ajuste de acordo com sua branch principal; 'main' é padrão.
+    branches: [ main, feature/inicio ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  test:
+    name: Run Robot Framework tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install robotframework robotframework-requests
+
+      - name: Run Robot Framework tests
+        # Executa todos os testes da pasta 'tests' e coloca resultados em 'results'
+        run: |
+          mkdir -p results
+          # Se quiser falhar o job em caso de falha de teste, remova '|| true'
+          robot --outputdir results tests || true
+
+      - name: Upload test results artifact (backup)
+        uses: actions/upload-artifact@v4
+        with:
+          name: robot-results
+          path: results
+
+  # Note: publishing to GitHub Pages removed per request. The workflow now
+  # only runs tests and uploads the generated reports as artifacts for
+  # download from the Actions run.
