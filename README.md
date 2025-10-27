@@ -139,21 +139,4 @@ Como consultar os relatórios no GitHub:
 
 Também é possível ver os logs do job clicando nos steps individuais no run.
 
-## Notas adicionais
 
-- Se no futuro quiser publicar automaticamente os relatórios em um site (GitHub
-  Pages), podemos re-adicionar essa etapa ao workflow. Dependendo das políticas
-  do repositório/organização, pode ser necessário criar um Personal Access Token
-  (PAT) com escopo `repo` e adicioná-lo em Settings → Secrets → Actions para
-  permitir push automatizado para a branch `gh-pages`.
-- O workflow atual usa `actions/upload-artifact@v4` para armazenar os resultados.
-
-## Contato / Suporte
-
-Abra uma issue neste repositório se precisar de ajuda para configurar o
-ambiente, ajustar os testes ou personalizar o workflow.
-
----
-
-Feito por equipe de automação.
-# robot-api-serveRest
