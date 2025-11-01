@@ -60,10 +60,19 @@ jobs:
           name: robot-results
           path: ./
 
-      - name: Set up JDK
-        uses: actions/setup-java@v3
+      - name: Upload allure-results (raw) artifact
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          distribution: zulu
+          name: allure-results
+          path: results/allure-results
+          if-no-files-found: warn
+
+      - name: Set up JDK (Zulu 17)
+        if: always()
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
           java-version: '17'
 
       - name: Load test report history
@@ -83,6 +92,13 @@ jobs:
             cp -r gh-pages/allure-history/* results/allure-history/ || true
           fi
 
+      - name: Prepare allure-results folder
+        run: |
+          if [ -d results/allure-results ]; then
+            mkdir -p allure-results
+            cp -r results/allure-results/* allure-results/ || true
+          fi
+
       - name: Install Allure CLI
         run: |
           ALLURE_VERSION=2.22.0
@@ -91,38 +107,44 @@ jobs:
           unzip -q allure.zip -d /tmp
           /tmp/allure-${ALLURE_VERSION}/bin/allure --version
 
-      - name: Generate Allure report locally
+      - name: Build test report (Allure)
+        if: ${{ hashFiles('allure-results/**') != '' }}
+        uses: simple-elf/allure-report-action@v1.7
+        with:
+          gh_pages: gh-pages
+          allure_history: allure-history
+          allure_results: allure-results
+
+      - name: Copy built allure-history to workspace
         if: always()
         run: |
-          # Ensure results/allure-results exists
-          if [ -d results/allure-results ]; then
-            /tmp/allure-2.22.0/bin/allure generate results/allure-results -o gh-pages --clean || true
-            echo 'Allure report generated into gh-pages/'
-          else
-            echo 'No allure-results found in results/, skipping Allure generation.'
+          if [ -d gh-pages/allure-history ]; then
+            rm -rf allure-history || true
+            cp -r gh-pages/allure-history ./allure-history || true
           fi
 
-      - name: Publish gh-pages by pushing branch (fallback)
-        if: always()
+      - name: Upload built Allure report (allure-history)
+        if: ${{ hashFiles('allure-history/**') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-history
+          path: allure-history
+
+      - name: Publish test report to gh-pages
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && hashFiles('allure-history/**') != ''
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: allure-history
+          enable_jekyll: false
+
+      - name: Add report URL to job summary
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && hashFiles('allure-history/**') != ''
         env:
-          GH_PAGES_PAT: ${{ secrets.GH_PAGES_PAT }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
         run: |
-          set -e
-          # If GH_PAGES_PAT is not set, fail with instructive message
-          if [ -z "$GH_PAGES_PAT" ]; then
-            echo 'Secret GH_PAGES_PAT is not set. Create a Personal Access Token with repo scope and add it as repository secret GH_PAGES_PAT.'
-            exit 1
-          fi
-          # Ensure gh-pages dir exists and has content
-          if [ ! -d gh-pages ] || [ -z "$(ls -A gh-pages)" ]; then
-            echo 'gh-pages directory missing or empty; nothing to publish.'
-            exit 0
-          fi
-          git --version
-          cd gh-pages
-          git init
-          git checkout -b gh-pages
-          git add --all
-          git -c user.name='github-actions[bot]' -c user.email='actions@github.com' commit -m "Publish Allure report from workflow" || true
-          echo 'Pushing to origin gh-pages...'
-          git push --force "https://${GH_PAGES_PAT}@github.com/${{ github.repository }}" gh-pages:gh-pages
+          REPORT_URL="https://${OWNER}.github.io/${REPO}/"
+          echo "Allure Report URL: ${REPORT_URL}"
+          echo "\n## Allure Report\n\n- ${REPORT_URL}\n" >> "$GITHUB_STEP_SUMMARY"
