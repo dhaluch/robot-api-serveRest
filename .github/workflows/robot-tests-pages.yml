@@ -3,7 +3,7 @@ name: Robot Framework tests and publish logs to GitHub Pages
 on:
   push:
     # Ajuste de acordo com sua branch principal; 'main' é padrão.
-    branches: [ main, feature/inicio ]
+    branches: [ main, feature/allure-report ]
   pull_request:
     branches: [ main ]
   workflow_dispatch: {}
