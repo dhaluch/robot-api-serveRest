@@ -89,28 +89,6 @@ jobs:
           cp -n results/log.html site/ || true
           cp -n results/output.xml site/ || true
 
-      - name: List site folder (for debug)
-        run: |
-          echo '--- site contents ---'
-          ls -la site || true
-
-      - name: Pre-check GH_PAGES_PAT secret
-        env:
-          GH_PAGES_PAT: ${{ secrets.GH_PAGES_PAT }}
-        run: |
-          if [ -z "$GH_PAGES_PAT" ]; then
-            echo 'GH_PAGES_PAT secret is NOT set. The deploy step will likely fail.'
-            echo 'Please add a Personal Access Token (repo scope) as repository secret GH_PAGES_PAT.'
-            exit 1
-          else
-            echo 'GH_PAGES_PAT is set.'
-          fi
-
-      - name: "Debug: show git branches (before deploy)"
-        run: |
-          git --version || true
-          git ls-remote --heads origin || true
-
       - name: Deploy to gh-pages branch
         uses: peaceiris/actions-gh-pages@v3
         with:
@@ -119,7 +97,6 @@ jobs:
           # Provide the PAT via the 'personal_token' input so the action can push.
           personal_token: ${{ secrets.GH_PAGES_PAT }}
           publish_dir: ./site
-
       - name: "Fallback: push site to gh-pages if not present"
         env:
           GH_PAGES_PAT: ${{ secrets.GH_PAGES_PAT }}
@@ -146,17 +123,3 @@ jobs:
           git -c user.name='github-actions[bot]' -c user.email='actions@github.com' commit -m "Deploy Allure report from workflow"
           echo 'Pushing to origin gh-pages...'
           git push --force "https://${GH_PAGES_PAT}@github.com/${{ github.repository }}" gh-pages:gh-pages
-
-      - name: "Debug: list remote gh-pages branch"
-        run: |
-          echo '--- remote branches after deploy ---'
-          git ls-remote --heads origin gh-pages || true
-
-      - name: Check GitHub Pages status (API)
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo 'Querying Pages API for repository...'
-          resp=$(curl -s -H "Authorization: Bearer ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/${{ github.repository }}/pages)
-          echo "$resp" | jq '.' || echo "$resp"
-          echo 'If there is a "html_url" field above, that is the Pages URL.'
