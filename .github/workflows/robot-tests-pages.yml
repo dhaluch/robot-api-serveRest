@@ -95,8 +95,7 @@ jobs:
       - name: Prepare allure-results folder
         run: |
           if [ -d results/allure-results ]; then
-            mkdir -p allure-results
-            cp -r results/allure-results/* allure-results/ || true
+            mkdir -p results/allure-results || true
           fi
 
       - name: Install Allure CLI
@@ -107,44 +106,34 @@ jobs:
           unzip -q allure.zip -d /tmp
           /tmp/allure-${ALLURE_VERSION}/bin/allure --version
 
-      - name: Build test report (Allure)
-        if: ${{ hashFiles('allure-results/**') != '' }}
-        uses: simple-elf/allure-report-action@v1.7
-        with:
-          gh_pages: gh-pages
-          allure_history: allure-history
-          allure_results: allure-results
+      - name: Generate Allure report into gh-pages/
+        if: ${{ hashFiles('results/allure-results/**') != '' }}
+        run: |
+          # copy previous history to results if present
+          if [ -d gh-pages/allure-history ]; then
+            mkdir -p results/allure-history
+            cp -r gh-pages/allure-history/* results/allure-history/ || true
+          fi
+          # generate report (output goes to gh-pages)
+          /tmp/allure-2.22.0/bin/allure generate results/allure-results -o gh-pages --clean || true
+          echo 'Generated Allure report into gh-pages/'
 
-      - name: Copy built allure-history to workspace
+      - name: List gh-pages contents
         if: always()
         run: |
-          if [ -d gh-pages/allure-history ]; then
-            rm -rf allure-history || true
-            cp -r gh-pages/allure-history ./allure-history || true
+          if [ -d gh-pages ]; then
+            echo 'gh-pages content:'
+            ls -la gh-pages | sed -n '1,200p'
+          else
+            echo 'gh-pages directory missing'
           fi
 
-      - name: Upload built Allure report (allure-history)
-        if: ${{ hashFiles('allure-history/**') != '' }}
-        uses: actions/upload-artifact@v4
+      - name: Upload Pages artifact
+        if: always()
+        uses: actions/upload-pages-artifact@v1
         with:
-          name: allure-history
-          path: allure-history
+          path: gh-pages
 
-      - name: Publish test report to gh-pages
-        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && hashFiles('allure-history/**') != ''
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_branch: gh-pages
-          publish_dir: allure-history
-          enable_jekyll: false
-
-      - name: Add report URL to job summary
-        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && hashFiles('allure-history/**') != ''
-        env:
-          OWNER: ${{ github.repository_owner }}
-          REPO: ${{ github.event.repository.name }}
-        run: |
-          REPORT_URL="https://${OWNER}.github.io/${REPO}/"
-          echo "Allure Report URL: ${REPORT_URL}"
-          echo "\n## Allure Report\n\n- ${REPORT_URL}\n" >> "$GITHUB_STEP_SUMMARY"
+      - name: Deploy Pages
+        if: always()
+        uses: actions/deploy-pages@v1
