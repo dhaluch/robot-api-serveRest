@@ -102,12 +102,27 @@ jobs:
             echo 'No allure-results found in results/, skipping Allure generation.'
           fi
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v1
+      - name: Publish gh-pages by pushing branch (fallback)
         if: always()
-        with:
-          path: gh-pages
-
-      - name: Deploy Pages
-        uses: actions/deploy-pages@v1
-        if: always()
+        env:
+          GH_PAGES_PAT: ${{ secrets.GH_PAGES_PAT }}
+        run: |
+          set -e
+          # If GH_PAGES_PAT is not set, fail with instructive message
+          if [ -z "$GH_PAGES_PAT" ]; then
+            echo 'Secret GH_PAGES_PAT is not set. Create a Personal Access Token with repo scope and add it as repository secret GH_PAGES_PAT.'
+            exit 1
+          fi
+          # Ensure gh-pages dir exists and has content
+          if [ ! -d gh-pages ] || [ -z "$(ls -A gh-pages)" ]; then
+            echo 'gh-pages directory missing or empty; nothing to publish.'
+            exit 0
+          fi
+          git --version
+          cd gh-pages
+          git init
+          git checkout -b gh-pages
+          git add --all
+          git -c user.name='github-actions[bot]' -c user.email='actions@github.com' commit -m "Publish Allure report from workflow" || true
+          echo 'Pushing to origin gh-pages...'
+          git push --force "https://${GH_PAGES_PAT}@github.com/${{ github.repository }}" gh-pages:gh-pages
