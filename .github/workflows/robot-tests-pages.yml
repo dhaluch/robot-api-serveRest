@@ -82,12 +82,12 @@ jobs:
           allure_history: allure-history
           allure_results: results/allure-results
 
-      - name: Publish test report
-        uses: peaceiris/actions-gh-pages@v3
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v1
         if: always()
         with:
-          # Use a Personal Access Token secret to allow pushing to gh-pages
-          # Create a PAT with 'repo' scope and add it as repository secret GH_PAGES_PAT
-          personal_token: ${{ secrets.GH_PAGES_PAT }}
-          publish_branch: gh-pages
-          publish_dir: gh-pages
+          path: gh-pages
+
+      - name: Deploy Pages
+        uses: actions/deploy-pages@v1
+        if: always()
