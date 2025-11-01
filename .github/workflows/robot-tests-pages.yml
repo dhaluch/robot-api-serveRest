@@ -60,80 +60,30 @@ jobs:
           name: robot-results
           path: ./
 
-      - name: Upload allure-results (raw) artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: allure-results
-          path: results/allure-results
-          if-no-files-found: warn
-
-      - name: Set up JDK (Zulu 17)
-        if: always()
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-
-      - name: Load test report history
-        uses: actions/checkout@v4
-        if: always()
-        continue-on-error: true
-        with:
-          ref: gh-pages
-          path: gh-pages
-
-      - name: Prepare Allure history (if any)
-        if: always()
+      - name: Prepare gh-pages folder with Robot reports
         run: |
-          # If previous gh-pages contains an allure-history folder, copy it to results so Allure can reuse it
-          if [ -d gh-pages/allure-history ]; then
-            mkdir -p results/allure-history
-            cp -r gh-pages/allure-history/* results/allure-history/ || true
+          rm -rf gh-pages || true
+          mkdir -p gh-pages
+          # Copy Robot Framework reports if present
+          if [ -f results/report.html ]; then
+            cp results/report.html gh-pages/index.html || true
           fi
-
-      - name: Prepare allure-results folder
-        run: |
-          if [ -d results/allure-results ]; then
-            mkdir -p results/allure-results || true
+          if [ -f results/log.html ]; then
+            cp results/log.html gh-pages/log.html || true
           fi
-
-      - name: Install Allure CLI
-        run: |
-          ALLURE_VERSION=2.22.0
-          echo "Downloading Allure ${ALLURE_VERSION}..."
-          wget -qO allure.zip https://github.com/allure-framework/allure2/releases/download/${ALLURE_VERSION}/allure-${ALLURE_VERSION}.zip
-          unzip -q allure.zip -d /tmp
-          /tmp/allure-${ALLURE_VERSION}/bin/allure --version
-
-      - name: Generate Allure report into gh-pages/
-        if: ${{ hashFiles('results/allure-results/**') != '' }}
-        run: |
-          # copy previous history to results if present
-          if [ -d gh-pages/allure-history ]; then
-            mkdir -p results/allure-history
-            cp -r gh-pages/allure-history/* results/allure-history/ || true
+          if [ -f results/output.xml ]; then
+            cp results/output.xml gh-pages/output.xml || true
           fi
-          # generate report (output goes to gh-pages)
-          /tmp/allure-2.22.0/bin/allure generate results/allure-results -o gh-pages --clean || true
-          echo 'Generated Allure report into gh-pages/'
 
       - name: List gh-pages contents
-        if: always()
         run: |
-          if [ -d gh-pages ]; then
-            echo 'gh-pages content:'
-            ls -la gh-pages | sed -n '1,200p'
-          else
-            echo 'gh-pages directory missing'
-          fi
+          echo 'gh-pages content:'
+          ls -la gh-pages || true
 
       - name: Upload Pages artifact
-        if: always()
         uses: actions/upload-pages-artifact@v1
         with:
           path: gh-pages
 
       - name: Deploy Pages
-        if: always()
         uses: actions/deploy-pages@v1
