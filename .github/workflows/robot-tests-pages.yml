@@ -95,8 +95,10 @@ jobs:
           ls -la site || true
 
       - name: Pre-check GH_PAGES_PAT secret
+        env:
+          GH_PAGES_PAT: ${{ secrets.GH_PAGES_PAT }}
         run: |
-          if [ -z "${{ secrets.GH_PAGES_PAT }}" ]; then
+          if [ -z "$GH_PAGES_PAT" ]; then
             echo 'GH_PAGES_PAT secret is NOT set. The deploy step will likely fail.'
             echo 'Please add a Personal Access Token (repo scope) as repository secret GH_PAGES_PAT.'
             exit 1
@@ -104,7 +106,7 @@ jobs:
             echo 'GH_PAGES_PAT is set.'
           fi
 
-      - name: Debug: show git branches (before deploy)
+      - name: "Debug: show git branches (before deploy)"
         run: |
           git --version || true
           git ls-remote --heads origin || true
@@ -118,7 +120,34 @@ jobs:
           personal_token: ${{ secrets.GH_PAGES_PAT }}
           publish_dir: ./site
 
-      - name: Debug: list remote gh-pages branch
+      - name: "Fallback: push site to gh-pages if not present"
+        env:
+          GH_PAGES_PAT: ${{ secrets.GH_PAGES_PAT }}
+        run: |
+          set -e
+          echo 'Checking if gh-pages exists on origin...'
+          if git ls-remote --heads origin gh-pages | grep -q 'refs/heads/gh-pages'; then
+            echo 'gh-pages branch already exists on origin; skipping fallback push.'
+            exit 0
+          fi
+          echo 'gh-pages branch not found — creating and pushing via fallback.'
+          mkdir -p /tmp/gh-pages-deploy
+          git --version
+          cd /tmp/gh-pages-deploy
+          git init
+          git checkout -b gh-pages
+          cp -r $GITHUB_WORKSPACE/site/* . || true
+          # If there is nothing to commit, exit
+          if [ -z "$(ls -A .)" ]; then
+            echo 'No files to publish in site/. Skipping.'
+            exit 0
+          fi
+          git add --all
+          git -c user.name='github-actions[bot]' -c user.email='actions@github.com' commit -m "Deploy Allure report from workflow"
+          echo 'Pushing to origin gh-pages...'
+          git push --force "https://${GH_PAGES_PAT}@github.com/${{ github.repository }}" gh-pages:gh-pages
+
+      - name: "Debug: list remote gh-pages branch"
         run: |
           echo '--- remote branches after deploy ---'
           git ls-remote --heads origin gh-pages || true
