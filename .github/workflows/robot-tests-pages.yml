@@ -98,5 +98,7 @@ jobs:
         uses: peaceiris/actions-gh-pages@v3
         with:
           # Use GH_PAGES_PAT secret (create in repo Settings → Secrets → Actions)
-          github_token: ${{ secrets.GH_PAGES_PAT }}
+          # The action expects either a deploy_key, personal_token or github_token input.
+          # Provide the PAT via the 'personal_token' input so the action can push.
+          personal_token: ${{ secrets.GH_PAGES_PAT }}
           publish_dir: ./site
