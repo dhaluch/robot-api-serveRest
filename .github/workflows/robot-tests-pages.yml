@@ -39,33 +39,11 @@ jobs:
           # usa o listener do allure-robotframework para gerar allure-results
           robot --outputdir results --listener allure_robotframework tests || true
 
-      - name: Install Allure CLI
-        run: |
-          # Versão do Allure CLI (ajuste se necessário)
-          ALLURE_VERSION=2.22.0
-          echo "Downloading Allure ${ALLURE_VERSION}..."
-          wget -qO allure.zip https://github.com/allure-framework/allure2/releases/download/${ALLURE_VERSION}/allure-${ALLURE_VERSION}.zip
-          unzip -q allure.zip -d /tmp
-          ls -la /tmp
-          export PATH="/tmp/allure-${ALLURE_VERSION}/bin:$PATH"
-          /tmp/allure-${ALLURE_VERSION}/bin/allure --version
-
-      - name: Generate Allure report
-        run: |
-          # Se o listener criou uma pasta allure-results dentro de 'results', gere o relatório
-          if [ -d results/allure-results ]; then
-            /tmp/allure-2.22.0/bin/allure generate results/allure-results -o allure-report --clean || true
-          else
-            echo 'No allure-results found in results/; skipping Allure generation.'
-          fi
-
       - name: Upload test results artifact (backup)
         uses: actions/upload-artifact@v4
         with:
           name: robot-results
-          path: |
-            results
-            allure-report || true
+          path: results
 
 
   publish_pages:
@@ -73,53 +51,41 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository (for context)
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Prepare site folder
-        run: |
-          rm -rf site || true
-          mkdir -p site
-          # Copy Allure report if exists
-          if [ -d allure-report ]; then
-            cp -r allure-report/* site/ || true
-          fi
-          # Also copy Robot classic reports if present
-          cp -n results/report.html site/ || true
-          cp -n results/log.html site/ || true
-          cp -n results/output.xml site/ || true
-
-      - name: Deploy to gh-pages branch
-        uses: peaceiris/actions-gh-pages@v3
+      - name: Download test results artifact
+        uses: actions/download-artifact@v4
         with:
-          # Use GH_PAGES_PAT secret (create in repo Settings → Secrets → Actions)
-          # The action expects either a deploy_key, personal_token or github_token input.
-          # Provide the PAT via the 'personal_token' input so the action can push.
-          personal_token: ${{ secrets.GH_PAGES_PAT }}
-          publish_dir: ./site
-      - name: "Fallback: push site to gh-pages if not present"
-        env:
-          GH_PAGES_PAT: ${{ secrets.GH_PAGES_PAT }}
-        run: |
-          set -e
-          echo 'Checking if gh-pages exists on origin...'
-          if git ls-remote --heads origin gh-pages | grep -q 'refs/heads/gh-pages'; then
-            echo 'gh-pages branch already exists on origin; skipping fallback push.'
-            exit 0
-          fi
-          echo 'gh-pages branch not found — creating and pushing via fallback.'
-          mkdir -p /tmp/gh-pages-deploy
-          git --version
-          cd /tmp/gh-pages-deploy
-          git init
-          git checkout -b gh-pages
-          cp -r $GITHUB_WORKSPACE/site/* . || true
-          # If there is nothing to commit, exit
-          if [ -z "$(ls -A .)" ]; then
-            echo 'No files to publish in site/. Skipping.'
-            exit 0
-          fi
-          git add --all
-          git -c user.name='github-actions[bot]' -c user.email='actions@github.com' commit -m "Deploy Allure report from workflow"
-          echo 'Pushing to origin gh-pages...'
-          git push --force "https://${GH_PAGES_PAT}@github.com/${{ github.repository }}" gh-pages:gh-pages
+          name: robot-results
+          path: ./
+
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: zulu
+          java-version: '17'
+
+      - name: Load test report history
+        uses: actions/checkout@v4
+        if: always()
+        continue-on-error: true
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Build test report
+        uses: simple-elf/allure-report-action@v1.7
+        if: always()
+        with:
+          gh_pages: gh-pages
+          allure_history: allure-history
+          allure_results: results/allure-results
+
+      - name: Publish test report
+        uses: peaceiris/actions-gh-pages@v3
+        if: always()
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: gh-pages
