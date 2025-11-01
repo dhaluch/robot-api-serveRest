@@ -74,13 +74,33 @@ jobs:
           ref: gh-pages
           path: gh-pages
 
-      - name: Build test report
-        uses: simple-elf/allure-report-action@v1.7
+      - name: Prepare Allure history (if any)
         if: always()
-        with:
-          gh_pages: gh-pages
-          allure_history: allure-history
-          allure_results: results/allure-results
+        run: |
+          # If previous gh-pages contains an allure-history folder, copy it to results so Allure can reuse it
+          if [ -d gh-pages/allure-history ]; then
+            mkdir -p results/allure-history
+            cp -r gh-pages/allure-history/* results/allure-history/ || true
+          fi
+
+      - name: Install Allure CLI
+        run: |
+          ALLURE_VERSION=2.22.0
+          echo "Downloading Allure ${ALLURE_VERSION}..."
+          wget -qO allure.zip https://github.com/allure-framework/allure2/releases/download/${ALLURE_VERSION}/allure-${ALLURE_VERSION}.zip
+          unzip -q allure.zip -d /tmp
+          /tmp/allure-${ALLURE_VERSION}/bin/allure --version
+
+      - name: Generate Allure report locally
+        if: always()
+        run: |
+          # Ensure results/allure-results exists
+          if [ -d results/allure-results ]; then
+            /tmp/allure-2.22.0/bin/allure generate results/allure-results -o gh-pages --clean || true
+            echo 'Allure report generated into gh-pages/'
+          else
+            echo 'No allure-results found in results/, skipping Allure generation.'
+          fi
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v1
