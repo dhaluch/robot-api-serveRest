@@ -1,0 +1,27 @@
+name: Check deprecated artifact actions
+
+on:
+  push:
+    branches: [ main, feature/allure-report ]
+  pull_request:
+
+jobs:
+  check-artifact-actions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Search for deprecated upload-artifact@v3 or download-artifact@v3
+        run: |
+          set -euo pipefail
+          echo "Looking for deprecated artifact action usages in .github/workflows..."
+          matches=$(grep -R "actions/upload-artifact@v3\|actions/download-artifact@v3\|upload-artifact@v3\|download-artifact@v3" .github/workflows || true)
+          if [ -n "$matches" ]; then
+            echo "Found deprecated artifact action usages:" 
+            echo "$matches"
+            echo "Please update occurrences to @v4 (actions/upload-artifact@v4 / actions/download-artifact@v4) or update dependent actions."
+            exit 1
+          else
+            echo "No deprecated upload/download artifact v3 usages found in workflows."
+          fi
