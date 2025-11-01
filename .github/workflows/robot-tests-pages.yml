@@ -29,21 +29,74 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install robotframework robotframework-requests
+          # Instala Robot Framework e adaptador Allure para Robot
+          pip install robotframework robotframework-requests allure-robotframework allure-python-commons
 
-      - name: Run Robot Framework tests
-        # Executa todos os testes da pasta 'tests' e coloca resultados em 'results'
+      - name: Run Robot Framework tests (generate Allure results)
+        # Executa os testes e gera resultados padrão e Allure results
         run: |
           mkdir -p results
-          # Se quiser falhar o job em caso de falha de teste, remova '|| true'
-          robot --outputdir results tests || true
+          # usa o listener do allure-robotframework para gerar allure-results
+          robot --outputdir results --listener allure_robotframework tests || true
+
+      - name: Install Allure CLI
+        run: |
+          # Versão do Allure CLI (ajuste se necessário)
+          ALLURE_VERSION=2.22.0
+          echo "Downloading Allure ${ALLURE_VERSION}..."
+          wget -qO allure.zip https://github.com/allure-framework/allure2/releases/download/${ALLURE_VERSION}/allure-${ALLURE_VERSION}.zip
+          unzip -q allure.zip -d /tmp
+          ls -la /tmp
+          export PATH="/tmp/allure-${ALLURE_VERSION}/bin:$PATH"
+          /tmp/allure-${ALLURE_VERSION}/bin/allure --version
+
+      - name: Generate Allure report
+        run: |
+          # Se o listener criou uma pasta allure-results dentro de 'results', gere o relatório
+          if [ -d results/allure-results ]; then
+            /tmp/allure-2.22.0/bin/allure generate results/allure-results -o allure-report --clean || true
+          else
+            echo 'No allure-results found in results/; skipping Allure generation.'
+          fi
 
       - name: Upload test results artifact (backup)
         uses: actions/upload-artifact@v4
         with:
           name: robot-results
-          path: results
+          path: |
+            results
+            allure-report || true
 
-  # Note: publishing to GitHub Pages removed per request. The workflow now
-  # only runs tests and uploads the generated reports as artifacts for
-  # download from the Actions run.
+
+  publish_pages:
+    name: Publish Allure report to GitHub Pages
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository (for context)
+        uses: actions/checkout@v4
+
+      - name: Prepare site folder
+        run: |
+          rm -rf site || true
+          mkdir -p site
+          # Copy Allure report if exists
+          if [ -d allure-report ]; then
+            cp -r allure-report/* site/ || true
+          fi
+          # Also copy Robot classic reports if present
+          cp -n results/report.html site/ || true
+          cp -n results/log.html site/ || true
+          cp -n results/output.xml site/ || true
+
+      - name: List site folder (for debug)
+        run: |
+          echo '--- site contents ---'
+          ls -la site || true
+
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          # Use GH_PAGES_PAT secret (create in repo Settings → Secrets → Actions)
+          github_token: ${{ secrets.GH_PAGES_PAT }}
+          publish_dir: ./site
