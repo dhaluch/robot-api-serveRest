@@ -16,7 +16,8 @@ jobs:
         run: |
           set -euo pipefail
           echo "Looking for deprecated artifact action usages in .github/workflows..."
-          matches=$(grep -R "actions/upload-artifact@v3\|actions/download-artifact@v3\|upload-artifact@v3\|download-artifact@v3" .github/workflows || true)
+          # Exclude this checker file from the search to avoid self-matching
+          matches=$(grep -R --exclude='check-deprecated-artifact-actions.yml' -nE 'actions/(upload|download)-artifact@v3|upload-artifact@v3|download-artifact@v3' .github/workflows || true)
           if [ -n "$matches" ]; then
             echo "Found deprecated artifact action usages:" 
             echo "$matches"
