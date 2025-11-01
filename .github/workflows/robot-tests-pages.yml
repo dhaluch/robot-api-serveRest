@@ -74,6 +74,24 @@ jobs:
           ls -la results || true
           find results -maxdepth 3 -type f -print || true
 
+      - name: Locate output.xml and prepare for reporter
+        run: |
+          echo 'Searching for output.xml in the workspace...'
+          set -e
+          found=$(find . -type f -name output.xml -print -quit || true)
+          if [ -n "$found" ]; then
+            echo "Found output.xml at: $found"
+            mkdir -p results
+            cp "$found" results/output.xml
+            echo 'Copied to results/output.xml'
+            ls -la results || true
+          else
+            echo 'ERROR: output.xml not found in workspace. The reporter requires results/output.xml.'
+            echo 'Available files (top-level):'
+            ls -la || true
+            exit 1
+          fi
+
       - name: Send report to PR/commit and add to job summary
         uses: joonvena/robotframework-reporter-action@v2.5
         with:
