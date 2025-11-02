@@ -1,115 +1,12 @@
-name: Publish Robot report to GitHub Pages (official)
+name: (deprecated) Publish Robot report to GitHub Pages
 
 on:
-  push:
-    # Ajuste de acordo com sua branch principal; 'main' é padrão.
-    # Executa em main e em qualquer branch que comece com 'feature/'
-    branches: [ main, 'feature/**' ]
-    # Triggered manually or when the test workflow completes successfully.
   workflow_dispatch: {}
-  workflow_run:
-    workflows: [ 'Robot Framework tests and publish logs to GitHub Pages' ]
-    types:
-      - completed
 
 jobs:
-  publish-pages:
-    name: Prepare and publish Robot report to GitHub Pages
+  noop:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: read
-      pages: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Download robot-results artifact from triggering run
-        env:
-          GITHUB_API_URL: https://api.github.com
-          REPO: ${{ github.repository }}
-          RUN_ID: ${{ github.event.workflow_run.id }}
-          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Notice
         run: |
-          set -euo pipefail
-          echo "Looking up artifacts for run '${RUN_ID:-}' in $REPO"
-          # If RUN_ID is empty (workflow dispatched manually), find the latest successful test workflow run
-          if [ -z "${RUN_ID:-}" ]; then
-            echo "RUN_ID is empty; searching for latest successful run of the test workflow..."
-            RUN_ID=$(curl -s -H "Authorization: token $TOKEN" "$GITHUB_API_URL/repos/$REPO/actions/runs?per_page=50" | python -c "import sys,json; j=json.load(sys.stdin); print(next((r['id'] for r in j.get('workflow_runs',[]) if r.get('name')=='Robot Framework tests and publish logs to GitHub Pages' and r.get('conclusion')=='success'), ''))")
-            if [ -z "$RUN_ID" ]; then
-              echo "Could not find a recent successful run for the test workflow."
-              exit 1
-            fi
-            echo "Found run id: $RUN_ID"
-          fi
-
-          # Get artifact id for robot-results
-          ARTIFACT_ID=$(curl -s -H "Authorization: token $TOKEN" "$GITHUB_API_URL/repos/$REPO/actions/runs/$RUN_ID/artifacts" | python -c "import sys,json; j=json.load(sys.stdin); ids=[a['id'] for a in j.get('artifacts',[]) if a.get('name')=='robot-results']; print(ids[0] if ids else '')")
-          if [ -z "$ARTIFACT_ID" ]; then
-            echo "robot-results artifact not found in run $RUN_ID"
-            exit 1
-          fi
-          echo "Found artifact id: $ARTIFACT_ID"
-
-          # Download the artifact zip
-          curl -sL -H "Authorization: token $TOKEN" -H "Accept: application/vnd.github+json" "$GITHUB_API_URL/repos/$REPO/actions/artifacts/$ARTIFACT_ID/zip" -o robot-results.zip
-          unzip -o robot-results.zip -d artifact || true
-          echo "Downloaded and extracted robot-results to ./artifact"
-
-      - name: Set up Node (for Allure CLI)
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
-      - name: Install Allure CLI
-        run: |
-          echo 'Installing allure-commandline...'
-          npm install -g allure-commandline --no-fund --no-audit || true
-
-      - name: Generate Allure report (if allure-results present)
-        run: |
-          if [ -d artifact/allure-results ]; then
-            echo 'Found allure-results, generating Allure report into site/allure-report'
-            mkdir -p site
-            # generate directly into site/allure-report
-            allure generate artifact/allure-results -o site/allure-report --clean || true
-            echo 'Allure report generated.'
-          else
-            echo 'No allure-results found; skipping Allure generation.'
-          fi
-
-      - name: Prepare site folder
-        run: |
-          echo "Preparing site folder for Pages..."
-          mkdir -p site
-          # Copy Robot Framework HTML report/log if present
-          if [ -d artifact/results ]; then
-            cp -r artifact/results/* site/ || true
-          fi
-          # Copy Allure report if present
-          if [ -d artifact/allure-report ]; then
-            cp -r artifact/allure-report/* site/ || true
-          fi
-          # Fallback: copy any top-level files from artifact
-          cp -r artifact/* site/ || true
-          # Ensure index.html exists
-          if [ ! -f site/index.html ]; then
-            echo "<html><body>" > site/index.html
-            echo "  <h1>Robot Framework Report</h1>" >> site/index.html
-            echo "  <ul>" >> site/index.html
-            echo "    <li><a href=\"report.html\">Report</a></li>" >> site/index.html
-            echo "    <li><a href=\"log.html\">Log</a></li>" >> site/index.html
-            echo "  </ul>" >> site/index.html
-            echo "</body></html>" >> site/index.html
-          fi
-          ls -la site || true
-
-      - name: Deploy to gh-pages using peaceiris (requires PAT)
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          # Create a Personal Access Token (classic) with 'repo' scope and add it
-          # to repository secrets as GH_PAGES_PAT before running this workflow.
-          personal_token: ${{ secrets.GH_PAGES_PAT }}
-          publish_dir: ./site
-          publish_branch: gh-pages
+          echo "This workflow is deprecated. Use .github/workflows/robot-ci-pages.yml"
