@@ -1,0 +1,57 @@
+name: Publish Robot report to GitHub Pages (official)
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [ main, feature/allure-report, feature/report-robot ]
+
+jobs:
+  publish-pages:
+    name: Prepare and publish Robot report to GitHub Pages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download robot-results artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: robot-results
+          path: ./artifact
+
+      - name: Prepare site folder
+        run: |
+          echo "Preparing site folder for Pages..."
+          mkdir -p site
+          # Copy Robot Framework HTML report/log if present
+          if [ -d artifact/results ]; then
+            cp -r artifact/results/* site/ || true
+          fi
+          # Copy Allure report if present
+          if [ -d artifact/allure-report ]; then
+            cp -r artifact/allure-report/* site/ || true
+          fi
+          # Fallback: copy any top-level files from artifact
+          cp -r artifact/* site/ || true
+          # Ensure index.html exists
+          if [ ! -f site/index.html ]; then
+            echo "<html><body>" > site/index.html
+            echo "  <h1>Robot Framework Report</h1>" >> site/index.html
+            echo "  <ul>" >> site/index.html
+            echo "    <li><a href=\"report.html\">Report</a></li>" >> site/index.html
+            echo "    <li><a href=\"log.html\">Log</a></li>" >> site/index.html
+            echo "  </ul>" >> site/index.html
+            echo "</body></html>" >> site/index.html
+          fi
+          ls -la site || true
+
+      - name: Upload pages artifact (official)
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: ./site
+
+      - name: Deploy to GitHub Pages (official)
+        uses: actions/deploy-pages@v1
