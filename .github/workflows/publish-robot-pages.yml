@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      actions: read
       pages: write
     steps:
       - name: Checkout repository
@@ -29,28 +30,29 @@ jobs:
           RUN_ID: ${{ github.event.workflow_run.id }}
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Looking up artifacts for run $RUN_ID in $REPO"
-          # Get artifacts list for the triggering run
-          artifacts_json=$(curl -s -H "Authorization: token $TOKEN" "$GITHUB_API_URL/repos/$REPO/actions/runs/$RUN_ID/artifacts")
-          echo "$artifacts_json" | python - <<'PY'
-          import sys, json
-          data = json.load(sys.stdin)
-          for a in data.get('artifacts', []):
-              if a.get('name') == 'robot-results':
-                  print(a.get('id'))
-                  sys.exit(0)
-          sys.exit(2)
-          PY
-          rc=$?
-          if [ "$rc" -ne 0 ]; then
+          set -euo pipefail
+          echo "Looking up artifacts for run '${RUN_ID:-}' in $REPO"
+          # If RUN_ID is empty (workflow dispatched manually), find the latest successful test workflow run
+          if [ -z "${RUN_ID:-}" ]; then
+            echo "RUN_ID is empty; searching for latest successful run of the test workflow..."
+            RUN_ID=$(curl -s -H "Authorization: token $TOKEN" "$GITHUB_API_URL/repos/$REPO/actions/runs?per_page=50" | python -c "import sys,json; j=json.load(sys.stdin); print(next((r['id'] for r in j.get('workflow_runs',[]) if r.get('name')=='Robot Framework tests and publish logs to GitHub Pages' and r.get('conclusion')=='success'), ''))")
+            if [ -z "$RUN_ID" ]; then
+              echo "Could not find a recent successful run for the test workflow."
+              exit 1
+            fi
+            echo "Found run id: $RUN_ID"
+          fi
+
+          # Get artifact id for robot-results
+          ARTIFACT_ID=$(curl -s -H "Authorization: token $TOKEN" "$GITHUB_API_URL/repos/$REPO/actions/runs/$RUN_ID/artifacts" | python -c "import sys,json; j=json.load(sys.stdin); ids=[a['id'] for a in j.get('artifacts',[]) if a.get('name')=='robot-results']; print(ids[0] if ids else '')")
+          if [ -z "$ARTIFACT_ID" ]; then
             echo "robot-results artifact not found in run $RUN_ID"
             exit 1
           fi
-          ARTIFACT_ID=$(curl -s -H "Authorization: token $TOKEN" "$GITHUB_API_URL/repos/$REPO/actions/runs/$RUN_ID/artifacts" | python -c "import sys, json; j=json.load(sys.stdin); print([a['id'] for a in j.get('artifacts',[]) if a.get('name')=='robot-results'][0])")
           echo "Found artifact id: $ARTIFACT_ID"
+
           # Download the artifact zip
-          curl -sL -H "Authorization: token $TOKEN" -H "Accept: application/vnd.github+json" \
-            "$GITHUB_API_URL/repos/$REPO/actions/artifacts/$ARTIFACT_ID/zip" -o robot-results.zip
+          curl -sL -H "Authorization: token $TOKEN" -H "Accept: application/vnd.github+json" "$GITHUB_API_URL/repos/$REPO/actions/artifacts/$ARTIFACT_ID/zip" -o robot-results.zip
           unzip -o robot-results.zip -d artifact || true
           echo "Downloaded and extracted robot-results to ./artifact"
 
