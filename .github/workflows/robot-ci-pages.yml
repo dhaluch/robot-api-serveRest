@@ -50,10 +50,15 @@ jobs:
           fi
           ls -la site || true
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v1
+      - name: Deploy to GitHub Pages using peaceiris (PAT required)
+        # This uses a Personal Access Token (classic) stored in repository
+        # secrets as GH_PAGES_PAT (repo scope). If your organization allows
+        # GITHUB_TOKEN to publish Pages, we can switch back to the
+        # official upload-pages-artifact + deploy-pages flow. The official
+        # flow currently causes a runtime failure due to a transitive
+        # deprecated action (upload-artifact@v3).
+        uses: peaceiris/actions-gh-pages@v3
         with:
-          path: site
-
-      - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v1
+          personal_token: ${{ secrets.GH_PAGES_PAT }}
+          publish_dir: ./site
+          publish_branch: gh-pages
