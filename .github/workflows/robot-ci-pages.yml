@@ -1,0 +1,64 @@
+name: Robot Framework CI and publish to GitHub Pages
+
+on:
+  push:
+    # Runs on main and any branch that starts with feature/
+    branches: [ main, 'feature/**' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+
+jobs:
+  build-and-publish:
+    name: Run tests and publish report to GitHub Pages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install robotframework robotframework-requests Faker
+
+      - name: Run Robot Framework tests
+        # Execute all tests in 'tests' and place results in 'results'
+        run: |
+          mkdir -p results
+          robot --outputdir results tests
+
+      - name: Prepare site folder for Pages
+        run: |
+          set -e
+          mkdir -p site
+          # Copy Robot Framework HTML report/log if present
+          if [ -d results ]; then
+            cp -r results/* site/ || true
+          fi
+          # Ensure a minimal index.html exists
+          if [ ! -f site/index.html ]; then
+            printf '%s\n' '<!doctype html>' '<html>' '  <head><meta charset="utf-8"><title>Robot Framework Report</title></head>' '  <body>' '    <h1>Robot Framework Report</h1>' '    <ul>' '      <li><a href="report.html">Report</a></li>' '      <li><a href="log.html">Log</a></li>' '    </ul>' '  </body>' '</html>' > site/index.html
+          fi
+          ls -la site || true
+
+      - name: Deploy to GitHub Pages using peaceiris (PAT required)
+        # This uses a Personal Access Token (classic) stored in repository
+        # secrets as GH_PAGES_PAT (repo scope). If your organization allows
+        # GITHUB_TOKEN to publish Pages, we can switch back to the
+        # official upload-pages-artifact + deploy-pages flow. The official
+        # flow currently causes a runtime failure due to a transitive
+        # deprecated action (upload-artifact@v3).
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          personal_token: ${{ secrets.GH_PAGES_PAT }}
+          publish_dir: ./site
+          publish_branch: gh-pages
