@@ -1,9 +1,12 @@
 name: Publish Robot report to GitHub Pages (official)
 
 on:
+  # Triggered manually or when the test workflow completes successfully.
   workflow_dispatch: {}
-  push:
-    branches: [ main, feature/allure-report, feature/report-robot ]
+  workflow_run:
+    workflows: [ 'Robot Framework tests and publish logs to GitHub Pages' ]
+    types:
+      - completed
 
 jobs:
   publish-pages:
@@ -16,11 +19,37 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download robot-results artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: robot-results
-          path: ./artifact
+      - name: Download robot-results artifact from triggering run
+        env:
+          GITHUB_API_URL: https://api.github.com
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Looking up artifacts for run $RUN_ID in $REPO"
+          # Get artifacts list for the triggering run
+          artifacts_json=$(curl -s -H "Authorization: token $TOKEN" "$GITHUB_API_URL/repos/$REPO/actions/runs/$RUN_ID/artifacts")
+          echo "$artifacts_json" | python - <<'PY'
+          import sys, json
+          data = json.load(sys.stdin)
+          for a in data.get('artifacts', []):
+              if a.get('name') == 'robot-results':
+                  print(a.get('id'))
+                  sys.exit(0)
+          sys.exit(2)
+          PY
+          rc=$?
+          if [ "$rc" -ne 0 ]; then
+            echo "robot-results artifact not found in run $RUN_ID"
+            exit 1
+          fi
+          ARTIFACT_ID=$(curl -s -H "Authorization: token $TOKEN" "$GITHUB_API_URL/repos/$REPO/actions/runs/$RUN_ID/artifacts" | python -c "import sys, json; j=json.load(sys.stdin); print([a['id'] for a in j.get('artifacts',[]) if a.get('name')=='robot-results'][0])")
+          echo "Found artifact id: $ARTIFACT_ID"
+          # Download the artifact zip
+          curl -sL -H "Authorization: token $TOKEN" -H "Accept: application/vnd.github+json" \
+            "$GITHUB_API_URL/repos/$REPO/actions/artifacts/$ARTIFACT_ID/zip" -o robot-results.zip
+          unzip -o robot-results.zip -d artifact || true
+          echo "Downloaded and extracted robot-results to ./artifact"
 
       - name: Prepare site folder
         run: |
