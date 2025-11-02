@@ -48,10 +48,11 @@ jobs:
           fi
           ls -la site || true
 
-      - name: Upload pages artifact (official)
-        uses: actions/upload-pages-artifact@v4
+      - name: Deploy to gh-pages using peaceiris (requires PAT)
+        uses: peaceiris/actions-gh-pages@v3
         with:
-          path: ./site
-
-      - name: Deploy to GitHub Pages (official)
-        uses: actions/deploy-pages@v4
+          # Create a Personal Access Token (classic) with 'repo' scope and add it
+          # to repository secrets as GH_PAGES_PAT before running this workflow.
+          personal_token: ${{ secrets.GH_PAGES_PAT }}
+          publish_dir: ./site
+          publish_branch: gh-pages
