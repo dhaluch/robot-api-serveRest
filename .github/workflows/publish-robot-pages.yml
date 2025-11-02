@@ -3,7 +3,8 @@ name: Publish Robot report to GitHub Pages (official)
 on:
   push:
     # Ajuste de acordo com sua branch principal; 'main' é padrão.
-    branches: [ main, feature/allure-report, feature/report-robot ]
+    # Executa em main e em qualquer branch que comece com 'feature/'
+    branches: [ main, 'feature/**' ]
     # Triggered manually or when the test workflow completes successfully.
   workflow_dispatch: {}
   workflow_run:
