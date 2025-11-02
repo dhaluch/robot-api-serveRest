@@ -54,6 +54,28 @@ jobs:
           unzip -o robot-results.zip -d artifact || true
           echo "Downloaded and extracted robot-results to ./artifact"
 
+      - name: Set up Node (for Allure CLI)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Allure CLI
+        run: |
+          echo 'Installing allure-commandline...'
+          npm install -g allure-commandline --no-fund --no-audit || true
+
+      - name: Generate Allure report (if allure-results present)
+        run: |
+          if [ -d artifact/allure-results ]; then
+            echo 'Found allure-results, generating Allure report into site/allure-report'
+            mkdir -p site
+            # generate directly into site/allure-report
+            allure generate artifact/allure-results -o site/allure-report --clean || true
+            echo 'Allure report generated.'
+          else
+            echo 'No allure-results found; skipping Allure generation.'
+          fi
+
       - name: Prepare site folder
         run: |
           echo "Preparing site folder for Pages..."
