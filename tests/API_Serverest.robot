@@ -6,7 +6,7 @@ Library           String
 Library           OperatingSystem
 
 Resource          ../resources/usuario.robot
-Resource          ../resources/produto.robot
+
 
 Suite Setup       Criar Sessão       https://serverest.dev
 Suite Teardown    Encerrar Sessão
