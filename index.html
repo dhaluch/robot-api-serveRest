@@ -1,11 +1,41 @@
-<!doctype html>
-<html>
-  <head><meta charset="utf-8"><title>Robot Framework Report</title></head>
-  <body>
-    <h1>Robot Framework Report</h1>
-    <ul>
-      <li><a href="report.html">Report</a></li>
-      <li><a href="log.html">Log</a></li>
-    </ul>
-  </body>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Robot Framework Test Reports</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; background: #f8f9fa; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .header { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 30px; }
+    .report-item { background: white; border: 1px solid #e1e5e9; padding: 20px; margin: 15px 0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .branch-name { color: #0969da; font-weight: bold; font-size: 1.1em; }
+    .date { color: #656d76; font-size: 0.9em; margin: 5px 0; }
+    .links { margin-top: 10px; }
+    .links a { display: inline-block; margin-right: 15px; padding: 8px 16px; background: #0969da; color: white; text-decoration: none; border-radius: 6px; font-size: 0.9em; }
+    .links a:hover { background: #0550ae; }
+    .latest { border-left: 4px solid #28a745; }
+    .emoji { font-size: 1.2em; margin-right: 8px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1><span class="emoji">🤖</span>Robot Framework Test Reports</h1>
+      <p>Relatórios de testes automatizados gerados pelo GitHub Actions</p>
+    </div>
+    <div class="report-item latest">
+      <h3><span class="emoji">📊</span>Execução Mais Recente</h3>
+      <div class="branch-name">Branch: feature/documentacao</div>
+      <div class="date">Data: 2025-11-04 02:10:10 UTC</div>
+      <div class="links">
+        <a href="feature-documentacao/20251104-021010/report.html" target="_blank">📋 Report</a>
+        <a href="feature-documentacao/20251104-021010/log.html" target="_blank">📄 Log</a>
+      </div>
+    </div>
+    <div style="margin-top: 40px; padding: 20px; border-top: 1px solid #e1e5e9; color: #656d76; font-size: 0.9em; text-align: center;">
+      <p>🔄 Atualizado automaticamente pelo GitHub Actions</p>
+    </div>
+  </div>
+</body>
 </html>
